@@ -1,6 +1,0 @@
-0 eat
-1 run
-2 yawn
-3 stand
-4 sit
-5 kneeldown
