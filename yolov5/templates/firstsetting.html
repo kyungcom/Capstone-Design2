@@ -1,0 +1,23 @@
+<html>
+<head>
+    <title>First Setting</title>
+</head>
+<script>
+    $(document).ready(function(){
+        if("{{ session['id'] }}" == ""){
+            alert("올바른 경로가 아닙니다.");
+            location.href = "/";
+        }
+    })
+</script>
+<body>
+
+
+<div>
+    <a href="/onlyone">한마리</a>
+</div>
+<div>
+    <a href="/morethantwo">여러마리</a>
+</div>
+</body>
+</html>

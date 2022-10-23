@@ -1,0 +1,73 @@
+
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+<style>
+    div.images {
+        overflow: auto;
+        white-space: nowrap;
+    }
+    .box{
+        display: inline-block;
+        white-space:nowrap;
+        width: 160px;
+        padding: 29px 0 0 11px;
+
+    }
+    .box:hover{
+        border:#F00 2px solid;
+    }
+    div{
+        display:block;
+        position: relative;
+    }
+
+    .word-break {
+        overflow: hidden;
+        word-break: break-word;
+        white-space: normal;
+    }
+    a{
+        text-decoration: none;
+    }
+</style>
+{% set pose = {"eating":"식사", "running":"달리기", "yawn":"하품", "standing":"서있기", "sitting":"앉기", "kneeldown":"엎드리기"} %}
+{% extends 'index.html' %}
+{% block content %}
+    <div class = "images">
+        {% for img in imgs %}
+            <div class = "box">
+                <a href = "/detail?path={{ img.path }}&&pose={{ img.pose }}&&time={{ img.datetime }}">
+                    <div class = "img_plot">
+                        <img src="{{ img.path }}" style="width:150px; height:100px;"/>
+                    </div>
+                    <div class = "pname">
+                        <p>행동 : {{ pose[img.pose] }}</p>
+                        <p class="word-break">날짜 : {{ img.datetime }}</p>
+                    </div>
+                </a>
+            </div>
+        {% endfor %}
+    </div>
+    <div class="detail_btn">
+       <a href="/imgList"><button>더보기</button></a>
+    </div>
+
+<script>
+setInterval(function(){ // load the data from your endpoint into the div
+    $.ajax({
+      url: "/renewimg",
+      type: "get",
+      data: {jsdata: "text"},
+      success: function(response) {
+        $(".images").html(response);
+      },
+      error: function(xhr) {
+        console.log("error")
+      }
+    });
+
+},1000)
+</script>
+
+
+{% endblock %}

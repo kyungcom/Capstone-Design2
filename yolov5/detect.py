@@ -5,24 +5,45 @@ import sys
 from pathlib import Path
 from tensorflow import keras
 import torch
-from time import time
-from time import localtime
+from time import time, gmtime
 from PIL import Image, ImageOps
 import numpy as np
 import cv2
 from time import strftime
-from flask import Flask, render_template, render_template_string, Response
-
+from flask import Flask, render_template, render_template_string, Response, request, redirect, jsonify, session
 app = Flask(__name__)
+from flask_sqlalchemy import SQLAlchemy
+from multiprocessing import Process,Lock
+from threading import Thread
+from sqlalchemy import desc
+import json
+global previous
+process_dic = {}
+global lock
+lock = Lock()
+from modelss import db, User, Images
 
+app.config["SQLALCHEMY_DATABASE_URI"] = "mysql+pymysql://root:1234@localhost:3306/test"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+db.init_app(app)
+db.app = app
+with app.app_context():
+    db.create_all()
+
+global response_img
+response_img = (b'--frame\r\n'
+                            b'Content-Type: image/jpeg\r\n\r\n' + open('t.jpg', 'rb').read() + b'\r\n')
+
+now_path = os.getcwd()
 captured = False
 src = 1
 start_stream = int(time())
 previous = ""
+global dog_action
 dog_actions = {0:"eating", 1:"running", 2:"yawn", 3: "standing", 4:"sitting", 5:"kneeldown"}
 dog_act_detect_model = keras.models.load_model('keras_model.h5')
 dog_image = 0
-
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
 if str(ROOT) not in sys.path:
@@ -36,9 +57,18 @@ from utils.general import (LOGGER, Profile, check_file, check_img_size, check_im
 from utils.plots import Annotator, colors, save_one_box
 from utils.torch_utils import select_device, smart_inference_mode
 
+from time import sleep
+
+def get_video():
+    while True:
+        yield response_img
+        sleep(0.05)
+
+
+
 @smart_inference_mode()
 def run(
-        weights=ROOT / 'yolov5s.pt',  # model path or triton URL
+        weights=ROOT / 'pretrained/dogs.pt',  # model path or triton URL
         source=ROOT / 'data/images',  # file/dir/URL/glob/screen/0(webcam)
         data=ROOT / 'data/coco128.yaml',  # dataset.yaml path
         imgsz=(640, 640),  # inference size (height, width)
@@ -121,6 +151,7 @@ def run(
         # pred = utils.general.apply_classifier(pred, classifier_model, im, im0s)
 
         # Process predictions
+
         for i, det in enumerate(pred):  # per image
             global captured
             seen += 1
@@ -158,49 +189,68 @@ def run(
                             f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
                     if save_img or save_crop or view_img:  # Add bbox to image
+                        xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                         c = int(cls)  # integer class
-                        label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f}')
-                        annotator.box_label(xyxy, label, color=colors(c, True))
+                        data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
+                        normalized_image_array = (dog_image.astype(np.float32) / 127.0) - 1
+                        normalized_image_array = cv2.resize(normalized_image_array, dsize=(224, 224),
+                                                            interpolation=cv2.INTER_CUBIC)
+                        data[0] = normalized_image_array
+                        prediction_d = dog_act_detect_model.predict(data)
+                        dog_action = dog_actions[np.argmax(prediction_d)]
+                        previous = dog_action
+
+                        annotator.box_label(xyxy, dog_action, color=colors(c, True))
                     if save_crop:
                         save_one_box(xyxy, imc, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg', BGR=True)
 
             # Stream results
             im0 = annotator.result()
-            if view_img:
-                cv2.imwrite('t.jpg', im0)
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + open('t.jpg', 'rb').read() + b'\r\n')
+            lock.acquire()
+            cv2.imwrite('t.jpg', im0)
+            lock.release()
+            global response_img
+            response_img = (b'--frame\r\n'
+                            b'Content-Type: image/jpeg\r\n\r\n' + open('t.jpg', 'rb').read() + b'\r\n')
+            # yield (b'--frame\r\n'
+            #        b'Content-Type: image/jpeg\r\n\r\n' + open('t.jpg', 'rb').read() + b'\r\n')
+            # # Save results (image with detections)
+            # if save_img:
+            #     if dataset.mode == 'image':
+            #         cv2.imwrite(save_path, im0)
 
-            # Save results (image with detections)
-            if save_img:
-                if dataset.mode == 'image':
-                    cv2.imwrite(save_path, im0)
+        capture_time = time()+(60*60*9)
+        if (int(capture_time)-start_stream) % 3== 0 and not captured:
+            if previous != dog_action:
+                save_path = now_path + "/static/images/"+strftime('%Y-%m-%d',gmtime(capture_time))
+                if not os.path.exists(save_path):
+                    os.mkdir(save_path)
+                sv_path = save_path+"/"+dog_action+str(int(capture_time))[-5:]+".jpg"
+                cv2.imwrite(sv_path, dog_image)
+                img_db = Images(datetime=strftime('%Y-%m-%d %H:%M:%S',gmtime(capture_time)), pose = dog_action,path = "static/images/"+strftime('%Y-%m-%d',gmtime(capture_time))+"/"+dog_action+str(int(capture_time))[-5:]+".jpg")
+                with app.app_context():
+                    db.session.add(img_db)
+                    db.session.commit()
 
-        capture_time = time()
-        if (int(capture_time)-start_stream) % 3== 0 and len(det) and not captured:
-            data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
-            normalized_image_array = (dog_image.astype(np.float32) / 127.0) - 1
-            normalized_image_array = cv2.resize(normalized_image_array, dsize=(224, 224), interpolation=cv2.INTER_CUBIC)
-            data[0] = normalized_image_array
-            prediction_d = dog_act_detect_model.predict(data)
-            dog_action = dog_actions[np.argmax(prediction_d)]
-            capture_time = localtime(capture_time)
-            LOGGER.info(f"{s}{'' if len(det) else '(no detections), '}{dt[1].dt * 1E3:.1f}ms"+" dog_action:"+dog_action + " capture_time:"+strftime('%Y-%m-%d %I:%M:%S %p', capture_time))
+            previous = dog_action
+
+
+            # LOGGER.info(f"{s}{'' if len(det) else '(no detections), '}{dt[1].dt * 1E3:.1f}ms"+" dog_action:"+dog_action + " capture_time:"+strftime('%Y-%m-%d %H:%M:%S %p', gmtime(capture_time)))
             captured = True
 
         else:
             # Print time (inference-only)
-            LOGGER.info(f"{s}{'' if len(det) else '(no detections), '}{dt[1].dt * 1E3:.1f}ms")
+            # LOGGER.info(f"{s}{'' if len(det) else '(no detections), '}{dt[1].dt * 1E3:.1f}ms")
             if (int(capture_time)-start_stream) % 3 != 0:
                 captured = False
-    # Print results
-    t = tuple(x.t / seen * 1E3 for x in dt)  # speeds per image
-    LOGGER.info(f'Speed: %.1fms pre-process, %.1fms inference, %.1fms NMS per image at shape {(1, 3, *imgsz)}' % t)
-    if save_txt or save_img:
-        s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
-        LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}{s}")
-    if update:
-        strip_optimizer(weights[0])  # update model (to fix SourceChangeWarning)
+    # # Print results
+    # t = tuple(x.t / seen * 1E3 for x in dt)  # speeds per image
+    # LOGGER.info(f'Speed: %.1fms pre-process, %.1fms inference, %.1fms NMS per image at shape {(1, 3, *imgsz)}' % t)
+    # if save_txt or save_img:
+    #     s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
+    #     LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}{s}")
+    # if update:
+    #     strip_optimizer(weights[0])  # update model (to fix SourceChangeWarning)
 
 
 def parse_opt():
@@ -243,49 +293,65 @@ def main(opt):
     run(**vars(opt))
 
 
-@app.route('/')
+@app.route('/main')
 def index():
     """Video streaming"""
-    #return render_template('index.html')
-    return render_template_string('''<html>
-<head>
-    <title>Video Streaming </title>
-</head>
-<body>
-    <div>
-        <h1>Image</h1>
-        <img id="img" src="{{ url_for('video_feed') }}">
-    </div>
+    images = Images.query.order_by(desc(Images.datetime)).limit(10).all()
+    return render_template('imagesList.html',imgs = images)
 
-<script >
-    var ctx = document.getElementById("canvas").getContext('2d');
-    var img = new Image();
-    img.src = "{{ url_for('video_feed') }}";
 
-    // need only for static image
-    //img.onload = function(){   
-    //    ctx.drawImage(img, 0, 0);
-    //};
+@app.route('/detail')
+def detail():
+    """Video streaming"""
+    parameter_dict = request.args.to_dict()
+    img_path = parameter_dict["path"]
+    pose = parameter_dict["pose"]
+    times = parameter_dict["time"]
+    return render_template('imageDetail.html', img=img_path, pose=pose, time=times)
 
-    // need only for animated image
-    function refreshCanvas(){
-        ctx.drawImage(img, 0, 0);
-    };
-    window.setInterval("refreshCanvas()", 50);
 
-</script>
+@app.route('/delete')
+def delete():
+    """Video streaming"""
+    parameter_dict = request.args.to_dict()
+    img_path = parameter_dict["path"]
+    db.session.query(Images).filter(Images.path==img_path).\
+        delete()
+    db.session.commit()
 
-</body>
-</html>''')
+    if os.path.isfile(now_path+"/"+img_path):
+        os.remove(now_path+"/"+img_path)
 
+    return redirect("/main")
 
 @app.route('/video_feed')
 def video_feed():
     """Video streaming route. Put this in the src attribute of an img tag."""
-    opt = parse_opt()
-    return Response(run(**vars(opt)),
+
+    return Response(get_video(),
                 mimetype='multipart/x-mixed-replace; boundary=frame')
 
+@app.route("/renewimg")
+def renew(): # you need an endpoint on the server that returns your info...
+    images = Images.query.order_by(desc(Images.datetime)).limit(10).all()
+    return render_template('renew.html', imgs=images)
+
+@app.route('/login', methods=['POST'])
+def login():
+    id = request.form['uname']
+    pw = request.form['psw']
+
+    if (id == "root" and pw == "1234"):
+        session["id"] = id
+    return redirect('/main')
+
+@app.route('/')
+def start():
+    return render_template('login.html')
 
 if __name__ == '__main__':
+    opt = parse_opt()
+    proc = Thread(target=main, args=(opt,))
+    proc.start()
+    app.secret_key = os.urandom(24)
     app.run(host='0.0.0.0', port=3000)

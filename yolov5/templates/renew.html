@@ -1,0 +1,14 @@
+{% set pose = {"eating":"식사", "running":"달리기", "yawn":"하품", "standing":"서있기", "sitting":"앉기", "kneeldown":"엎드리기"} %}
+{% for img in imgs %}
+    <div class = "box">
+        <a href = "/detail?path={{ img.path }}&&pose={{ img.pose }}&&time={{ img.datetime }}">
+            <div class = "img_plot">
+                <img src="{{ img.path }}" style="width:150px; height:100px;"/>
+            </div>
+            <div class = "pname">
+                <p>행동 : {{ pose[img.pose] }}</p>
+                <p class="word-break">날짜 : {{ img.datetime }}</p>
+            </div>
+        </a>
+    </div>
+{% endfor %}

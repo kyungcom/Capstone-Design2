@@ -1,0 +1,54 @@
+<html>
+<head>
+    <title>img detail </title>
+</head>
+<body>
+<script>
+    $(document).ready(function(){
+        if("{{ session['id'] }}" == ""){
+            alert("올바른 경로가 아닙니다.");
+            location.href = "/";
+        }
+    })
+</script>
+<style>
+    .down_btn button{
+        display: inline-block;
+        position:relative;
+        background: #222;
+        font-size: 12px;
+        color: #fff;
+        cursor: pointer;
+        padding: 2px 16px;
+        line-height: 20px;
+        border-radius:30px;
+        border:none;
+        letter-spacing:-1px;
+        white-space:nowrap;
+    }
+    .down_btn button:hover{
+       box-shadow:1px 1px 4px rgba(0,0,0,0.4);
+
+    }
+    .down_btn{
+        display: inline-block;
+        white-space:nowrap;
+    }
+</style>
+{% set poses = {"eating":"식사", "running":"달리기", "yawn":"하품", "standing":"서있기", "sitting":"앉기", "kneeldown":"엎드리기"} %}
+    <div>
+        <h1>{{ poses[pose] }} {{ time }}</h1>
+        <img src="{{ img }}">
+    </div>
+    <div class="down_btn">
+       <a href="{{ img }}" download><button>이미지 원본 다운로드</button></a>
+    </div>
+     <div class="down_btn">
+       <a href="/delete?path={{ img }}"><button>이미지 삭제</button></a>
+    </div>
+    <div class="down_btn">
+       <a href="/"><button>돌아가기</button></a>
+    </div>
+
+</body>
+</html>
