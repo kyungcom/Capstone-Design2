@@ -1,6 +1,6 @@
 {% set pose = {"eating":"식사", "running":"달리기", "yawn":"하품", "standing":"서있기", "sitting":"앉기", "kneeldown":"엎드리기"} %}
 {% for img in imgs %}
-    <div class = "box">
+    <div class = "box" style="border: 1px solid black; display: inline-block;">
         <a href = "/detail?path={{ img.path }}&&pose={{ img.pose }}&&time={{ img.datetime }}">
             <div class = "img_plot">
                 <img src="{{ img.path }}" style="width:150px; height:100px;"/>

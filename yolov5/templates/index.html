@@ -1,20 +1,18 @@
 <html>
 <head>
-    <title>Video Streaming </title>
+    <title>CCTV</title>
+    <meta charset="utf-8">
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 </head>
 <body>
+    {% include "header.html" %}
     <div>
-        <h1>Image</h1>
+
+
+        <h1>CCTV</h1>
         <img id="img" src="{{ url_for('video_feed') }}">
     </div>
-<script>
-    $(document).ready(function(){
-        if("{{ session['id'] }}" == ""){
-            alert("올바른 경로가 아닙니다.");
-            location.href = "/";
-        }
-    })
-</script>
+<script src = "static/js/session.js"></script>
 <script >
     var ctx = document.getElementById("canvas").getContext('2d');
     var img = new Image();

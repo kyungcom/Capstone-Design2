@@ -15,12 +15,8 @@ app = Flask(__name__)
 from flask_sqlalchemy import SQLAlchemy
 from multiprocessing import Process,Lock
 from threading import Thread
-from sqlalchemy import desc
+from sqlalchemy import desc, cast, Date
 import json
-global previous
-process_dic = {}
-global lock
-lock = Lock()
 from modelss import db, User, Images
 
 app.config["SQLALCHEMY_DATABASE_URI"] = "mysql+pymysql://root:1234@localhost:3306/test"
@@ -40,7 +36,7 @@ captured = False
 src = 1
 start_stream = int(time())
 previous = ""
-global dog_action
+dog_action=""
 dog_actions = {0:"eating", 1:"running", 2:"yawn", 3: "standing", 4:"sitting", 5:"kneeldown"}
 dog_act_detect_model = keras.models.load_model('keras_model.h5')
 dog_image = 0
@@ -130,7 +126,11 @@ def run(
     # Run inference
     model.warmup(imgsz=(1 if pt or model.triton else bs, 3, *imgsz))  # warmup
     seen, windows, dt = 0, [], (Profile(), Profile(), Profile())
+    global previous
+
+    global dog_action
     for path, im, im0s, vid_cap, s in dataset:
+
         with dt[0]:
             im = torch.from_numpy(im).to(model.device)
             im = im.half() if model.fp16 else im.float()  # uint8 to fp16/32
@@ -191,14 +191,22 @@ def run(
                     if save_img or save_crop or view_img:  # Add bbox to image
                         xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
                         c = int(cls)  # integer class
+
+                        shape_y,shape_x,cha = dog_image.shape
+                        x_min = int((xywh[0] - xywh[2]/2) * shape_x)
+                        x_max = int((xywh[0] + xywh[2] / 2) * shape_x)
+                        y_min = int((xywh[1] - xywh[3] / 2) * shape_y)
+                        y_max = int((xywh[1] + xywh[3] / 2) * shape_y)
+
+                        temp = dog_image[y_min:y_max, x_min:x_max]
+                        cv2.imwrite('ex.jpg', temp)
                         data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
-                        normalized_image_array = (dog_image.astype(np.float32) / 127.0) - 1
+                        normalized_image_array = (temp.astype(np.float32) / 127.0) - 1
                         normalized_image_array = cv2.resize(normalized_image_array, dsize=(224, 224),
                                                             interpolation=cv2.INTER_CUBIC)
                         data[0] = normalized_image_array
                         prediction_d = dog_act_detect_model.predict(data)
                         dog_action = dog_actions[np.argmax(prediction_d)]
-                        previous = dog_action
 
                         annotator.box_label(xyxy, dog_action, color=colors(c, True))
                     if save_crop:
@@ -206,9 +214,7 @@ def run(
 
             # Stream results
             im0 = annotator.result()
-            lock.acquire()
             cv2.imwrite('t.jpg', im0)
-            lock.release()
             global response_img
             response_img = (b'--frame\r\n'
                             b'Content-Type: image/jpeg\r\n\r\n' + open('t.jpg', 'rb').read() + b'\r\n')
@@ -218,7 +224,6 @@ def run(
             # if save_img:
             #     if dataset.mode == 'image':
             #         cv2.imwrite(save_path, im0)
-
         capture_time = time()+(60*60*9)
         if (int(capture_time)-start_stream) % 3== 0 and not captured:
             if previous != dog_action:
@@ -310,6 +315,15 @@ def detail():
     return render_template('imageDetail.html', img=img_path, pose=pose, time=times)
 
 
+@app.route('/searchDetail')
+def searchDetail():
+    """Video streaming"""
+    parameter_dict = request.args.to_dict()
+    img_path = parameter_dict["path"]
+    pose = parameter_dict["pose"]
+    times = parameter_dict["time"]
+    return render_template('imageSearchDetail.html', img=img_path, pose=pose, time=times)
+
 @app.route('/delete')
 def delete():
     """Video streaming"""
@@ -323,6 +337,21 @@ def delete():
         os.remove(now_path+"/"+img_path)
 
     return redirect("/main")
+
+
+@app.route('/searchDelete')
+def searchDelete():
+    """Video streaming"""
+    parameter_dict = request.args.to_dict()
+    img_path = parameter_dict["path"]
+    db.session.query(Images).filter(Images.path==img_path).\
+        delete()
+    db.session.commit()
+
+    if os.path.isfile(now_path+"/"+img_path):
+        os.remove(now_path+"/"+img_path)
+
+    return redirect("/imgList")
 
 @app.route('/video_feed')
 def video_feed():
@@ -348,6 +377,36 @@ def login():
 @app.route('/')
 def start():
     return render_template('login.html')
+
+
+@app.route("/imgList")
+def _list():
+    page = request.args.get('page', type=int, default=1)  # 페이지
+    date = request.args.get('date', type=str, default=strftime('%Y-%m-%d', gmtime(time() + (60 * 60 * 9))))
+    pose = request.args.get('pose', type=str, default="ALL")
+
+    if pose == "ALL":
+        images = Images.query.filter(Images.datetime.cast(Date) == date).order_by(desc(Images.datetime))
+    else:
+        images = Images.query.filter((Images.datetime.cast(Date) == date) & (Images.pose == pose)).order_by(desc(Images.datetime))
+
+    page_lists = images.paginate(page=page, per_page=20)
+    return render_template('lists.html', imgs=page_lists)
+
+@app.route("/searchimg", methods = ['GET'])
+def searchimg(): # you need an endpoint on the server that returns your info...
+    page = request.args.get('page', type=int, default=1)  # 페이지
+    date = request.args.get('date', type=str, default=strftime('%Y-%m-%d', gmtime(time() + (60 * 60 * 9))))
+    pose = request.args.get('pose', type=str, default="ALL")
+
+
+    if pose == "ALL":
+        images = Images.query.filter(Images.datetime.cast(Date) == date).order_by(desc(Images.datetime))
+    else:
+        images = Images.query.filter((Images.datetime.cast(Date) == date) & (Images.pose == pose)).order_by(desc(Images.datetime))
+
+    page_lists = images.paginate(page = page, per_page=20)
+    return render_template('search_renew.html', imgs=page_lists)
 
 if __name__ == '__main__':
     opt = parse_opt()

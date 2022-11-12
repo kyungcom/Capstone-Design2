@@ -1,9 +1,24 @@
 <html>
+<script>
+    $(document).ready(function(){
+        if("{{ session['id'] }}" == "root"){
+            location.href = "/main";
+        }
+    })
+</script>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-body {font-family: Arial, Helvetica, sans-serif;}
-form {border: 3px solid #f1f1f1;}
+body {font-family: Arial, Helvetica, sans-serif; align-content: center; text-align: center;}
+#outside {
+    border: 3px solid #f1f1f1;
+    width: 60%;
+    height: 60%;
+    text-align: left;
+    margin:auto;
+    margin-top: 8%;
+    vertical-align: middle;
+}
 
 input[type=text], input[type=password] {
   width: 100%;
@@ -66,27 +81,28 @@ p{
 </style>
 </head>
 <body>
+    <div id="outside">
+        <form action="/login" method="post" style="">
+          <div class="imgcontainer">
+            <img src="/static/footprint.png" alt="footprint" class="avatar" style="width:150px; height:150px;">
+              <span style="font-size:250%;">반려견 CCTV</span>
+            <img src="/static/dog.png" alt="dog" class="avatar" style="width:150px; height:150px;">
+          </div>
 
-    <form action="/login" method="post">
-      <div class="imgcontainer">
-        <img src="/static/footprint.png" alt="footprint" class="avatar" style="width:150px; height:150px;">
-          <span style="font-size:250%;">반려견 CCTV</span>
-        <img src="/static/dog.png" alt="dog" class="avatar" style="width:150px; height:150px;">
-      </div>
+          <div class="container">
+            <label for="uname"><b>Username</b></label>
+            <input type="text" placeholder="Enter Username" name="uname" required>
 
-      <div class="container">
-        <label for="uname"><b>Username</b></label>
-        <input type="text" placeholder="Enter Username" name="uname" required>
+            <label for="psw"><b>Password</b></label>
+            <input type="password" placeholder="Enter Password" name="psw" required>
 
-        <label for="psw"><b>Password</b></label>
-        <input type="password" placeholder="Enter Password" name="psw" required>
-
-        <button type="submit">Login</button>
-        <label>
-          <input type="checkbox" checked="checked" name="remember"> Remember me
-        </label>
-      </div>
-    </form>
+            <button type="submit">Login</button>
+            <label>
+              <input type="checkbox" checked="checked" name="remember"> Remember me
+            </label>
+          </div>
+        </form>
+    </div>
 
 </body>
 </html>

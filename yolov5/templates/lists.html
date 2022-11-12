@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+
+      <script src="http://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  <meta charset="utf-8">
+    <title>날짜별 사진 확인</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <link href="static/css/lists.css" rel="stylesheet" type="text/css" />
+  </head>
+  <body>
+  {% include "header.html" %}
+  <div style="text-align: center; width: 100%; height: 100%;" >
+    <form id="search">
+        <label for="pose" stype="float: left;">행동</label>
+        <select id="pose" name="pose" size="1">
+            <option value="ALL">ALL</option>
+            <option value="eating">밥먹기</option>
+            <option value="yawn">하품</option>
+            <option value="running">달리기</option>
+            <option value="standing">서있기</option>
+            <option value="sitting">앉기</option>
+            <option value="kneeldown">엎드리기</option>
+        </select>
+        <label for="currentDate" stype="float: left;">날짜</label>
+        <input id="currentDate" type="date">
+        <input type="button" value="검색" onclick="test1(); return false;">
+    </form>
+{% set pose = {"eating":"식사", "running":"달리기", "yawn":"하품", "standing":"서있기", "sitting":"앉기", "kneeldown":"엎드리기"} %}
+      <div class="imagebox" style="justify-content: center; width: 80%; height: 80%; border: 1px solid black; display: inline-block; overflow:auto;">
+          <div class = "images">
+        {% for img in imgs.items %}
+            <div class = "box" style="border: 1px solid black; display: inline-block;">
+                <a href = "/searchDetail?path={{ img.path }}&&pose={{ img.pose }}&&time={{ img.datetime }}">
+                    <div class = "img_plot">
+                        <img src="{{ img.path }}" style="width:150px; height:100px;"/>
+                    </div>
+                    <div class = "pname">
+                        <p>행동 : {{ pose[img.pose] }}</p>
+                        <p class="word-break">날짜 : {{ img.datetime }}</p>
+                    </div>
+                </a>
+            </div>
+        {% endfor %}
+
+         <ul class="pagination justify-content-center">
+        <!-- 이전페이지 -->
+        {% if imgs.has_prev %}
+        <li class="page-item">
+            <a class="page-link" onclick="test2({{ imgs.prev_num }}); return false;">이전</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <a class="page-link" tabindex="-1" aria-disabled="true" href="javascript:void(0)">이전</a>
+        </li>
+        {% endif %}
+        <!-- 페이지번호 -->
+        {% for page_num in imgs.iter_pages() %}
+        {% if page_num %}
+        {% if page_num != imgs.page %}
+        <li class="page-item">
+            <a class="page-link" onclick="test2({{ page_num }}); return false;">{{ page_num }}</a>
+        </li>
+        {% else %}
+        <li class="page-item active" aria-current="page">
+            <a class="page-link" href="javascript:void(0)">{{ page_num }}</a>
+        </li>
+        {% endif %}
+        {% else %}
+        <li class="disabled">
+            <a class="page-link" href="javascript:void(0)">...</a>
+        </li>
+        {% endif %}
+        {% endfor %}
+        <!-- 다음페이지 -->
+        {% if imgs.has_next %}
+        <li class="page-item">
+            <a class="page-link" onclick="test2({{ imgs.next_num }}); return false;">다음</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <a class="page-link" tabindex="-1" aria-disabled="true" href="javascript:void(0)">다음</a>
+        </li>
+        {% endif %}
+    </ul>
+    </div>
+
+      </div>
+    </div>
+  </body>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.12.9/dist/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+<script>
+    document.getElementById('currentDate').value= new Date().toISOString().substring(0, 10);
+
+    function test1(){
+        var formData =  $("#pose").val();
+        var date = $("#currentDate").val();
+
+        $.ajax({
+            url: "/searchimg?pose="+formData+"&date="+date,
+            type: "GET",
+            data: {jsdata: "text"},
+            success: function(response) {
+             $(".images").html(response);
+            },
+            error: function(request, status, error){
+                    alert('ajax 통신 실패')
+                    alert(error);
+                }
+            });
+    }
+
+        function test2(page_num){
+        var formData =  $("#pose").val();
+        var date = $("#currentDate").val();
+
+        $.ajax({
+            url: "/searchimg?page="+page_num+"&pose="+formData+"&date="+date,
+            type: "GET",
+            data: {jsdata: "text"},
+            success: function(response) {
+             $(".images").html(response);
+            },
+            error: function(request, status, error){
+                    alert('ajax 통신 실패')
+                    alert(error);
+                }
+            });
+    }
+</script>
+
+</html>

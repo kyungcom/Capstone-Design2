@@ -1,0 +1,56 @@
+       html, body { height:100%; overflow:hidden }
+      * {
+        font-size: 16px;
+        font-family: Consolas, sans-serif;
+      }
+
+      select{
+          white-space: nowrap;
+      }
+      div.images {
+        word-break: break-all;
+    }
+      div.images2 {
+        word-break: break-all;
+        white-space: nowrap;
+        overflow: auto;
+    }
+    .box{
+        display: inline-block;
+        white-space:nowrap;
+        width: 160px;
+        text-align: center;
+        align-content: center;
+
+    }
+    .box:hover{
+        background-color:#cccccc;
+    }
+    div{
+        display:block;
+        position: relative;
+    }
+
+    .word-break {
+        overflow: hidden;
+        word-break: break-word;
+        white-space: normal;
+    }
+    a{
+        text-decoration: none;
+    }
+
+    .detail_btn button{
+        display: inline-block;
+        position:relative;
+        background: #222;
+        font-size: 12px;
+        color: #fff;
+        cursor: pointer;
+        padding: 2px 16px;
+        line-height: 20px;
+        border-radius:30px;
+        border:none;
+        letter-spacing:-1px;
+        white-space:nowrap;
+    }

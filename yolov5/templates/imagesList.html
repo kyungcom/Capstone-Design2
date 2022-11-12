@@ -1,41 +1,13 @@
 
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 
-<style>
-    div.images {
-        overflow: auto;
-        white-space: nowrap;
-    }
-    .box{
-        display: inline-block;
-        white-space:nowrap;
-        width: 160px;
-        padding: 29px 0 0 11px;
-
-    }
-    .box:hover{
-        border:#F00 2px solid;
-    }
-    div{
-        display:block;
-        position: relative;
-    }
-
-    .word-break {
-        overflow: hidden;
-        word-break: break-word;
-        white-space: normal;
-    }
-    a{
-        text-decoration: none;
-    }
-</style>
+<link href="static/css/lists.css" rel="stylesheet" type="text/css" />
 {% set pose = {"eating":"식사", "running":"달리기", "yawn":"하품", "standing":"서있기", "sitting":"앉기", "kneeldown":"엎드리기"} %}
 {% extends 'index.html' %}
 {% block content %}
-    <div class = "images">
+    <div class = "images2">
         {% for img in imgs %}
-            <div class = "box">
+            <div class = "box" style="border: 1px solid black; display: inline-block;">
                 <a href = "/detail?path={{ img.path }}&&pose={{ img.pose }}&&time={{ img.datetime }}">
                     <div class = "img_plot">
                         <img src="{{ img.path }}" style="width:150px; height:100px;"/>
@@ -49,7 +21,7 @@
         {% endfor %}
     </div>
     <div class="detail_btn">
-       <a href="/imgList"><button>더보기</button></a>
+       <a href="/imgList"><button>이미지 더보기</button></a>
     </div>
 
 <script>

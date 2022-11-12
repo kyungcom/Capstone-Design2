@@ -1,0 +1,58 @@
+{% set pose = {"eating":"식사", "running":"달리기", "yawn":"하품", "standing":"서있기", "sitting":"앉기", "kneeldown":"엎드리기"} %}
+{% for img in imgs.items %}
+    <div class = "box" style="border: 1px solid black; display: inline-block;">
+        <a href = "/detail?path={{ img.path }}&&pose={{ img.pose }}&&time={{ img.datetime }}">
+            <div class = "img_plot">
+                <img src="{{ img.path }}" style="width:150px; height:100px;"/>
+            </div>
+            <div class = "pname">
+                <p>행동 : {{ pose[img.pose] }}</p>
+                <p class="word-break">날짜 : {{ img.datetime }}</p>
+            </div>
+        </a>
+    </div>
+
+{% endfor %}
+{% set date = imgs.items[0].datetime | string() %}
+{% set date = date[:11] %}
+
+<ul class="pagination justify-content-center">
+        <!-- 이전페이지 -->
+        {% if imgs.has_prev %}
+        <li class="page-item">
+            <a class="page-link" onclick="test2({{ imgs.prev_num }}); return false;">이전</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <a class="page-link" tabindex="-1" aria-disabled="true" href="javascript:void(0)">이전</a>
+        </li>
+        {% endif %}
+        <!-- 페이지번호 -->
+        {% for page_num in imgs.iter_pages() %}
+        {% if page_num %}
+        {% if page_num != imgs.page %}
+        <li class="page-item">
+            <a class="page-link" onclick="test2({{ page_num }}); return false;">{{ page_num }}</a>
+        </li>
+        {% else %}
+        <li class="page-item active" aria-current="page">
+            <a class="page-link" href="javascript:void(0)">{{ page_num }}</a>
+        </li>
+        {% endif %}
+        {% else %}
+        <li class="disabled">
+            <a class="page-link" href="javascript:void(0)">...</a>
+        </li>
+        {% endif %}
+        {% endfor %}
+        <!-- 다음페이지 -->
+        {% if imgs.has_next %}
+        <li class="page-item">
+            <a class="page-link" onclick="test2({{ imgs.next_num }}); return false;">다음</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <a class="page-link" tabindex="-1" aria-disabled="true" href="javascript:void(0)">다음</a>
+        </li>
+        {% endif %}
+    </ul>
