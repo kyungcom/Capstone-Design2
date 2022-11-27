@@ -1,0 +1,10 @@
+
+        <table border="1px;"  style="width:100%; height: 100%;">
+            <th colspan="3"  class="text-center">행동유무</th>
+            <tr><td style="width: 20%">행동</td><td>오전</td><td>오후</td></tr>
+            <tr><td style="width: 20%">먹기</td><td style="width: 40%;">{% if morningaction[0] %}O{% else %}X{% endif %}</td><td style="width: 40%;">{% if eveningaction[0] %}O{% else %}X{% endif %}</td></tr>
+            <tr><td style="width: 20%">앉기</td><td style="width: 40%;">{% if morningaction[1] %}O{% else %}X{% endif %}</td><td style="width: 40%;">{% if eveningaction[1] %}O{% else %}X{% endif %}</td></tr>
+            <tr><td style="width: 20%">하품</td><td style="width: 40%;">{% if morningaction[2] %}O{% else %}X{% endif %}</td><td style="width: 40%;">{% if eveningaction[2] %}O{% else %}X{% endif %}</td></tr>
+            <tr><td style="width: 20%">눕기</td><td style="width: 40%;">{% if morningaction[3] %}O{% else %}X{% endif %}</td><td style="width: 40%;">{% if eveningaction[3] %}O{% else %}X{% endif %}</td></tr>
+            <tr><td style="width: 20%">달리기</td><td style="width: 40%;">{% if morningaction[4] %}O{% else %}X{% endif %}</td><td style="width: 40%;">{% if eveningaction[4] %}O{% else %}X{% endif %}</td></tr>
+        </table>

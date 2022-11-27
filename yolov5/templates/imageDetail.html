@@ -3,22 +3,46 @@
     <title>img detail </title>
 </head>
 <link href="static/css/detail.css" rel="stylesheet" type="text/css" />
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script>
+    $(document).ready(function(){
+        if("{{ session['id'] }}" == ""){
+            alert("올바른 경로가 아닙니다.");
+            location.href = "/";
+        }
+    })
+</script>
 <body>
 {% include "header.html" %}
 
 {% set poses = {"eating":"식사", "running":"달리기", "yawn":"하품", "standing":"서있기", "sitting":"앉기", "kneeldown":"엎드리기"} %}
-    <div>
-        <h1>{{ poses[pose] }} {{ time }}</h1>
-        <img src="{{ img }}">
-    </div>
+    <div class="wrapper">
+        <div class="content">
+        <table border="1">
+            <tr>
+                <td>행동</td>
+                <td>{{ poses[pose] }}</td>
+            </tr>
+            <tr>
+                <td>시간</td>
+                <td>{{ time }}</td>
+            </tr>
+            <tr>
+                <td>사진</td>
+                <td><img src="{{ img }}"></td>
+            </tr>
+        </table>
+
     <div class="down_btn">
        <a href="{{ img }}" download><button>이미지 원본 다운로드</button></a>
     </div>
      <div class="down_btn">
-       <a href="/delete?path={{ img }}"><button>이미지 삭제</button></a>
+       <a href="/searchDelete?path={{ img }}"><button>이미지 삭제</button></a>
     </div>
     <div class="down_btn">
        <a href="javascript:history.back();"><button>돌아가기</button></a>
+    </div>
+</div>
     </div>
 
 </body>

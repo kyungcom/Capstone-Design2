@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Document</title>
+</head>
+
+<body>
+{% include "header.html" %}
+<style>
+    .parent1{
+        float:left;
+        width: 32vw;
+        height: 100vh;
+        display: grid;
+        place-items: center;
+    }
+    .childdog{
+        border: 1px solid black;
+        border-radius: 2rem;
+        font-family: system-ui, serif;
+      font-size: 2rem;
+      padding: 2rem 3rem 3rem 3rem;
+      border-radius: 1rem;
+        width: 70%;
+        height: 20%;
+    }
+     a:hover{
+        background-color:#cccccc;
+    }
+     p{
+        font-size: 15px;
+     }
+</style>
+<div class="parent1">
+    <a href="/main">
+        <div class="childdog" id="continue" style="background:rosybrown; width: 100%;">
+            <img src="static/food.png" style="width: 100px; height: 100px"><hr>
+            <p>기존 데이터</p>
+        </div>
+    </a>
+</div>
+
+<div class="parent1">
+    <a href="/go_one_select">
+        <div class="childdog" id="onedog" style="background:bisque; width: 100%;">
+            <img src="static/one_dog.png" style="width: 100px; height: 100px"><hr>
+            <p>한마리 설정하기</p>
+        </div>
+    </a>
+</div>
+
+<div class="parent1">
+    <a href="/go_two_select">
+        <div class="childdog" id="twodog" style="background:darkseagreen; width: 100%;">
+            <img src="static/twodog.png" style="width: 100px; height: 100px"><hr>
+            <p>두마리 설정하기</p>
+        </div>
+    </a>
+</div>
+
+</body>
+</html>

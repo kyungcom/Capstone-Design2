@@ -5,20 +5,8 @@
 {% set pose = {"eating":"식사", "running":"달리기", "yawn":"하품", "standing":"서있기", "sitting":"앉기", "kneeldown":"엎드리기"} %}
 {% extends 'index.html' %}
 {% block content %}
-    <div class = "images2">
-        {% for img in imgs %}
-            <div class = "box" style="border: 1px solid black; display: inline-block;">
-                <a href = "/detail?path={{ img.path }}&&pose={{ img.pose }}&&time={{ img.datetime }}">
-                    <div class = "img_plot">
-                        <img src="{{ img.path }}" style="width:150px; height:100px;"/>
-                    </div>
-                    <div class = "pname">
-                        <p>행동 : {{ pose[img.pose] }}</p>
-                        <p class="word-break">날짜 : {{ img.datetime }}</p>
-                    </div>
-                </a>
-            </div>
-        {% endfor %}
+    <div class = "images2" style="width: 100%; display: block;">
+        {% include "renew.html" %}
     </div>
     <div class="detail_btn">
        <a href="/imgList"><button>이미지 더보기</button></a>
@@ -31,7 +19,7 @@ setInterval(function(){ // load the data from your endpoint into the div
       type: "get",
       data: {jsdata: "text"},
       success: function(response) {
-        $(".images").html(response);
+        $(".images2").html(response);
       },
       error: function(xhr) {
         console.log("error")
@@ -39,6 +27,21 @@ setInterval(function(){ // load the data from your endpoint into the div
     });
 
 },1000)
+
+setInterval(function(){ // load the data from your endpoint into the div
+    $.ajax({
+      url: "/renewtable",
+      type: "get",
+      data: {jsdata: "text"},
+      success: function(response) {
+        $(".action_table").html(response);
+      },
+      error: function(xhr) {
+        console.log("error")
+      }
+    });
+
+}(),6000*60*60)
 </script>
 
 

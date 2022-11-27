@@ -4,15 +4,25 @@
     <meta charset="utf-8">
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 </head>
-<body>
+<script>
+    $(document).ready(function(){
+        if("{{ session['id'] }}" == ""){
+            alert("올바른 경로가 아닙니다.");
+            location.href = "/";
+        }
+    })
+</script>
+<body style="overflow-y: auto;">
     {% include "header.html" %}
-    <div>
+    <h2 style="padding-left: 50px">CCTV</h2>
+    <div  style="width:60vw;padding-left: 50px; float:left;">
 
-
-        <h1>CCTV</h1>
-        <img id="img" src="{{ url_for('video_feed') }}">
+        <img id="img" src="{{ url_for('video_feed') }}" style="width:100%;white-space: nowrap; display: block;">
+        {% block content %}{% endblock %}
     </div>
-<script src = "static/js/session.js"></script>
+    <div class="action_table" style="float:left; margin-left: 5vw;width:30vw; height:60vh; text-align: center;">
+    {% include "actionexist.html" %}
+    </div>
 <script >
     var ctx = document.getElementById("canvas").getContext('2d');
     var img = new Image();
@@ -30,6 +40,6 @@
     window.setInterval("refreshCanvas()", 50);
 
 </script>
-{% block content %}{% endblock %}
+
 </body>
 </html>

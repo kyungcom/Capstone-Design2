@@ -54,3 +54,7 @@
         letter-spacing:-1px;
         white-space:nowrap;
     }
+
+    td {
+        text-align: center;
+    }

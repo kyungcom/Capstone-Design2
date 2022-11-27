@@ -10,14 +10,32 @@ from PIL import Image, ImageOps
 import numpy as np
 import cv2
 from time import strftime
-from flask import Flask, render_template, render_template_string, Response, request, redirect, jsonify, session
+from flask import Flask, render_template, render_template_string, Response, request, redirect, jsonify, session, url_for
 app = Flask(__name__)
 from flask_sqlalchemy import SQLAlchemy
 from multiprocessing import Process,Lock
-from threading import Thread
+from threading import Thread, Lock
 from sqlalchemy import desc, cast, Date
 import json
-from modelss import db, User, Images
+from flask_models.Image import db, Image
+from datetime import datetime
+import glob
+from sqlalchemy.sql import func
+from keras.preprocessing.image import ImageDataGenerator
+from keras.callbacks import  EarlyStopping
+from keras.models import Sequential
+from keras import layers
+from keras.layers import Conv2D,MaxPool2D,Flatten,Dense
+
+
+from models.common import DetectMultiBackend
+from utils.dataloaders import IMG_FORMATS, VID_FORMATS, LoadImages, LoadScreenshots, LoadStreams
+from utils.general import (LOGGER, Profile, check_file, check_img_size, check_imshow, check_requirements, colorstr, cv2,
+                           increment_path, non_max_suppression, print_args, scale_boxes, strip_optimizer, xyxy2xywh)
+from utils.plots import Annotator, colors, save_one_box
+from utils.torch_utils import select_device, smart_inference_mode
+
+from time import sleep
 
 app.config["SQLALCHEMY_DATABASE_URI"] = "mysql+pymysql://root:1234@localhost:3306/test"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
@@ -31,6 +49,9 @@ global response_img
 response_img = (b'--frame\r\n'
                             b'Content-Type: image/jpeg\r\n\r\n' + open('t.jpg', 'rb').read() + b'\r\n')
 
+
+lock = Lock()
+
 now_path = os.getcwd()
 captured = False
 src = 1
@@ -42,18 +63,12 @@ dog_act_detect_model = keras.models.load_model('keras_model.h5')
 dog_image = 0
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
+two_dogs = False
+dog_name = "dog"
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
-
-from models.common import DetectMultiBackend
-from utils.dataloaders import IMG_FORMATS, VID_FORMATS, LoadImages, LoadScreenshots, LoadStreams
-from utils.general import (LOGGER, Profile, check_file, check_img_size, check_imshow, check_requirements, colorstr, cv2,
-                           increment_path, non_max_suppression, print_args, scale_boxes, strip_optimizer, xyxy2xywh)
-from utils.plots import Annotator, colors, save_one_box
-from utils.torch_utils import select_device, smart_inference_mode
-
-from time import sleep
+two_dog_labels = [0,0]
 
 def get_video():
     while True:
@@ -61,7 +76,7 @@ def get_video():
         sleep(0.05)
 
 
-
+already_loaded = False
 @smart_inference_mode()
 def run(
         weights=ROOT / 'pretrained/dogs.pt',  # model path or triton URL
@@ -92,6 +107,12 @@ def run(
         dnn=False,  # use OpenCV DNN for ONNX inference
         vid_stride=1,  # video frame-rate stride
 ):
+    global two_dogs
+    dog_name_model = 0
+    global already_loaded
+    if two_dogs and not already_loaded:
+        dog_name_model = keras.models.load_model('two_dogs.h5')
+        already_loaded = True
     source = str(source)
     save_img = not nosave and not source.endswith('.txt')  # save inference images
     is_file = Path(source).suffix[1:] in (IMG_FORMATS + VID_FORMATS)
@@ -100,7 +121,6 @@ def run(
     screenshot = source.lower().startswith('screen')
     if is_url and is_file:
         source = check_file(source)  # download
-
     # Directories
     save_dir = increment_path(Path(project) / name, exist_ok=exist_ok)  # increment run
     (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
@@ -170,6 +190,7 @@ def run(
             annotator = Annotator(im0, line_width=line_thickness, example=str(names))
             global dog_image
             dog_image = im0.copy()
+            global dog_name
             if len(det):
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], im0.shape).round()
@@ -199,8 +220,20 @@ def run(
                         y_max = int((xywh[1] + xywh[3] / 2) * shape_y)
 
                         temp = dog_image[y_min:y_max, x_min:x_max]
-                        cv2.imwrite('ex.jpg', temp)
                         data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
+                        temp = cv2.cvtColor(temp, cv2.COLOR_BGR2RGB)
+                        if two_dogs:
+                            if not already_loaded:
+                                dog_name_model = keras.models.load_model('two_dogs.h5')
+                                already_loaded = True
+                            resized_image_array = cv2.resize(temp, dsize=(224, 224),
+                                                                interpolation=cv2.INTER_CUBIC)
+                            data[0] = resized_image_array
+                            results = dog_name_model.predict(data)
+                            print(results)
+                            dog_name = two_dog_labels[int(round(results[0][0]))]
+
+
                         normalized_image_array = (temp.astype(np.float32) / 127.0) - 1
                         normalized_image_array = cv2.resize(normalized_image_array, dsize=(224, 224),
                                                             interpolation=cv2.INTER_CUBIC)
@@ -208,7 +241,7 @@ def run(
                         prediction_d = dog_act_detect_model.predict(data)
                         dog_action = dog_actions[np.argmax(prediction_d)]
 
-                        annotator.box_label(xyxy, dog_action, color=colors(c, True))
+                        annotator.box_label(xyxy, str(dog_name)+" "+dog_action, color=colors(c, True))
                     if save_crop:
                         save_one_box(xyxy, imc, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg', BGR=True)
 
@@ -232,7 +265,7 @@ def run(
                     os.mkdir(save_path)
                 sv_path = save_path+"/"+dog_action+str(int(capture_time))[-5:]+".jpg"
                 cv2.imwrite(sv_path, dog_image)
-                img_db = Images(datetime=strftime('%Y-%m-%d %H:%M:%S',gmtime(capture_time)), pose = dog_action,path = "static/images/"+strftime('%Y-%m-%d',gmtime(capture_time))+"/"+dog_action+str(int(capture_time))[-5:]+".jpg")
+                img_db = Image(datetime=strftime('%Y-%m-%d %H:%M:%S',gmtime(capture_time)), pose = dog_action,path = "static/images/"+strftime('%Y-%m-%d',gmtime(capture_time))+"/"+dog_action+str(int(capture_time))[-5:]+".jpg")
                 with app.app_context():
                     db.session.add(img_db)
                     db.session.commit()
@@ -298,11 +331,12 @@ def main(opt):
     run(**vars(opt))
 
 
+
 @app.route('/main')
 def index():
     """Video streaming"""
-    images = Images.query.order_by(desc(Images.datetime)).limit(10).all()
-    return render_template('imagesList.html',imgs = images)
+    images = Image.query.order_by(desc(Image.datetime)).limit(10).all()
+    return render_template('imagesList.html',imgs = images, morningaction=[False]*5, eveningaction=[False]*5)
 
 
 @app.route('/detail')
@@ -315,21 +349,12 @@ def detail():
     return render_template('imageDetail.html', img=img_path, pose=pose, time=times)
 
 
-@app.route('/searchDetail')
-def searchDetail():
-    """Video streaming"""
-    parameter_dict = request.args.to_dict()
-    img_path = parameter_dict["path"]
-    pose = parameter_dict["pose"]
-    times = parameter_dict["time"]
-    return render_template('imageSearchDetail.html', img=img_path, pose=pose, time=times)
-
 @app.route('/delete')
 def delete():
     """Video streaming"""
     parameter_dict = request.args.to_dict()
     img_path = parameter_dict["path"]
-    db.session.query(Images).filter(Images.path==img_path).\
+    db.session.query(Image).filter(Image.path==img_path).\
         delete()
     db.session.commit()
 
@@ -338,20 +363,6 @@ def delete():
 
     return redirect("/main")
 
-
-@app.route('/searchDelete')
-def searchDelete():
-    """Video streaming"""
-    parameter_dict = request.args.to_dict()
-    img_path = parameter_dict["path"]
-    db.session.query(Images).filter(Images.path==img_path).\
-        delete()
-    db.session.commit()
-
-    if os.path.isfile(now_path+"/"+img_path):
-        os.remove(now_path+"/"+img_path)
-
-    return redirect("/imgList")
 
 @app.route('/video_feed')
 def video_feed():
@@ -362,17 +373,17 @@ def video_feed():
 
 @app.route("/renewimg")
 def renew(): # you need an endpoint on the server that returns your info...
-    images = Images.query.order_by(desc(Images.datetime)).limit(10).all()
+    images = Image.query.order_by(desc(Image.datetime)).limit(10).all()
     return render_template('renew.html', imgs=images)
 
-@app.route('/login', methods=['POST'])
+@app.route('/login', methods=['POST','GET'])
 def login():
     id = request.form['uname']
     pw = request.form['psw']
 
     if (id == "root" and pw == "1234"):
         session["id"] = id
-    return redirect('/main')
+    return render_template('selectmenu.html')
 
 @app.route('/')
 def start():
@@ -386,12 +397,17 @@ def _list():
     pose = request.args.get('pose', type=str, default="ALL")
 
     if pose == "ALL":
-        images = Images.query.filter(Images.datetime.cast(Date) == date).order_by(desc(Images.datetime))
+        images = Image.query.filter(Image.datetime.cast(Date) == date).order_by(desc(Image.datetime))
     else:
-        images = Images.query.filter((Images.datetime.cast(Date) == date) & (Images.pose == pose)).order_by(desc(Images.datetime))
+        images = Image.query.filter((Image.datetime.cast(Date) == date) & (Image.pose == pose)).order_by(desc(Image.datetime))
 
-    page_lists = images.paginate(page=page, per_page=20)
-    return render_template('lists.html', imgs=page_lists)
+
+    if len(images.all()) != 0:
+        page_lists = images.paginate(page = page, per_page=20)
+        return render_template('lists.html', imgs=page_lists)
+    else:
+        return "이미지가 없습니다."
+
 
 @app.route("/searchimg", methods = ['GET'])
 def searchimg(): # you need an endpoint on the server that returns your info...
@@ -401,12 +417,134 @@ def searchimg(): # you need an endpoint on the server that returns your info...
 
 
     if pose == "ALL":
-        images = Images.query.filter(Images.datetime.cast(Date) == date).order_by(desc(Images.datetime))
+        images = Image.query.filter(Image.datetime.cast(Date) == date).order_by(desc(Image.datetime))
     else:
-        images = Images.query.filter((Images.datetime.cast(Date) == date) & (Images.pose == pose)).order_by(desc(Images.datetime))
+        images = Image.query.filter((Image.datetime.cast(Date) == date) & (Image.pose == pose)).order_by(desc(Image.datetime))
+    if len(images.all()) != 0:
+        page_lists = images.paginate(page = page, per_page=20)
+        return render_template('search_renew.html', imgs=page_lists)
+    else:
+        return "이미지가 없습니다."
 
-    page_lists = images.paginate(page = page, per_page=20)
-    return render_template('search_renew.html', imgs=page_lists)
+
+@app.route("/go_select")
+def go_select():
+    return render_template('selectmenu.html')
+
+@app.route("/go_one_select")
+def go_one_select():
+    return render_template('inputonedog.html')
+
+@app.route("/go_two_select")
+def go_two_select():
+    return render_template('fileUpload.html')
+
+@app.route("/renewtable")
+def renewtable():
+    date = strftime('%Y-%m-%d', gmtime(time() + (60 * 60 * 9)))
+    starts = date+" 00:00:00"
+    morning = date+" 12:00:00"
+    evening = date+" 23:59:59"
+    morning_result = [False]*5
+    evening_result = [False] * 5
+    actions = ["eating", "sitting", "yawn", "kneeldown","running"]
+    loc = 0
+    for action in actions:
+        image1 = Image.query.filter((starts<=Image.datetime)&(Image.datetime<morning) & (Image.pose == action)).all()
+        image2 = Image.query.filter((morning <= Image.datetime) & (Image.datetime<= evening) & (Image.pose == action)).all()
+        if image1:
+            morning_result[loc] = True
+        if image2:
+            evening_result[loc] = True
+        loc+=1
+    return render_template('actionexist.html', morningaction=morning_result, eveningaction=evening_result)
+
+@app.route("/test")
+def test():
+    return render_template('fileUpload.html')
+
+@app.route("/singledog", methods=["GET","POST"])
+def singledog():
+    global dog_name
+    global two_dogs
+    global already_loaded
+    if request.method == "POST":
+        two_dogs = False
+        already_loaded = False
+        dog_name = request.form["dogname"]
+        print(dog_name)
+    return redirect("/main")
+
+@app.route("/upload", methods=["GET","POST"])
+def upload():
+    if request.method == "POST":
+        value = dict(request.form)
+        dog1 = value["dog1"]
+        dog2 = value["dog2"]
+        prevs = glob.glob('static/dogs/*')
+        for f in prevs:
+            files_in = glob.glob(f.replace("\\","/",10)+"/*")
+            for file_in in files_in:
+                os.remove(file_in.replace("\\","/",10))
+            os.rmdir(f.replace("\\","/",10))
+        for seq_file, seq_dog in [["file1",dog1], ["file2",dog2]]:
+            files = request.files.getlist(seq_file)
+            UPLOAD_FOLDER = 'static/dogs/'+seq_dog
+            app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+            os.mkdir(UPLOAD_FOLDER)
+            for file in files:
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], file.filename))
+        make_keras()
+    global two_dogs
+    two_dogs = True
+    return redirect("/main")
+
+
+def make_keras():
+    global two_dog_labels
+
+    train_datagen = ImageDataGenerator(rescale=1./255,
+    width_shift_range = 0.2,
+    height_shift_range = 0.2,
+    fill_mode='nearest',
+    validation_split = 0.2)
+
+    model = Sequential([
+        layers.Input(shape=(224, 224, 3)),
+        layers.Conv2D(16, 3, padding='same', activation='relu'),
+        layers.MaxPooling2D(),
+        layers.Conv2D(32, 3, padding='same', activation='relu'),
+        layers.MaxPooling2D(),
+        layers.Conv2D(64, 3, padding='same', activation='relu'),
+        layers.MaxPooling2D(),
+        layers.Flatten(),
+        layers.Dense(128, activation='relu'),
+        layers.Dense(1, activation="sigmoid")
+    ])
+    train_generator = train_datagen.flow_from_directory(
+        'static/dogs',
+        batch_size=16,
+        target_size=(224, 224),
+        class_mode='binary'
+    )
+
+    two_dog_labels = [0,0]
+    for key,value in train_generator.class_indices.items():
+        two_dog_labels[value] = key
+    # early_stopping
+    early_stopping = EarlyStopping(
+        monitor="loss",
+        min_delta=0,
+        verbose=1,
+        patience=5,
+        restore_best_weights=True
+    )
+    model.compile(loss='binary_crossentropy', metrics=['accuracy'], optimizer='adam')
+    model.fit(train_generator,batch_size=64, epochs=100,callbacks=[early_stopping])
+
+    model.save("two_dogs.h5")
+
 
 if __name__ == '__main__':
     opt = parse_opt()

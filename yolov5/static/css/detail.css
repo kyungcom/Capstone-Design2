@@ -20,3 +20,16 @@
         display: inline-block;
         white-space:nowrap;
     }
+
+    .wrapper {
+  display: grid;
+  place-items: center;
+  min-height: 80vh;
+}
+
+.content {
+  font-family: system-ui, serif;
+  font-size: 2rem;
+  padding: 2rem 3rem 3rem 3rem;
+  border-radius: 1rem;
+}
