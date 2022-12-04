@@ -98,10 +98,15 @@ model = Sequential([
 
 5. 결과
 
+![CCTV_-_Chrome_2022-12-05_00-58-56_AdobeExpress (1)](https://user-images.githubusercontent.com/72953874/205501661-a090dc3e-8376-4469-9a89-62e5191392bd.gif)
+
+
 ## Conclusion
 * Summary
 
-결과적으로 견주들의 가장 큰 걱정인 외출시 반려견이 걱정되는 문제를 덜어주기 위한 cctv의 기능 중, 기존의 기능들과는 다르게 반려견의 행동을 분석하고, 행동을 기록해주는 기능을 구현해 볼 수 있었다.
+결과적으로 견주들의 가장 큰 걱정인 외출시 반려견이 걱정되는 문제를 덜어주기 위한 cctv의 기능 중, 기존의 기능들과는 다르게 반려견의 행동을 분석하고, 행동을 기록해주는 기능을 구현해 볼 수 있었다. 구조는 아래와 같다.
+
+![image](https://user-images.githubusercontent.com/72953874/204131756-9e2b8a9f-7495-43d5-be9e-0da6c02f737b.png)
 
 * Future plan
 1. 이미지 1장에 1마리가 포함된 Stanford dogs data로 인해 떨어지는 YOLO모델의 여러마리 반려견에 대한 탐지 정확도 개선
@@ -114,3 +119,4 @@ model = Sequential([
 2. [Google Teachable Machine](https://teachablemachine.withgoogle.com/)
 3. [standard dogs Dataset](http://vision.stanford.edu/aditya86/ImageNetDogs/)
 4. [yolov4-versus-yolov5](https://blog.roboflow.com/yolov4-versus-yolov5/)
+5. [yolov5](https://github.com/ultralytics/yolov5)
